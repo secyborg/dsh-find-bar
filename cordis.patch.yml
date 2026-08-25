@@ -1,0 +1,12 @@
+# dsh-find-bar bundle patch
+#
+# Installed through the official CLI:
+#
+#   dsh plugin --profile desktop add dsh-find-bar-0.1.0.tgz
+#
+# The command appends dsh-find-bar to the profile's bundle stack and merges
+# this patch (a single `insert` of the plugin row). The host half is a no-op:
+# everything runs in the client bundle.
+- insert:
+    - id: find-bar
+      name: 'dsh-find-bar'
