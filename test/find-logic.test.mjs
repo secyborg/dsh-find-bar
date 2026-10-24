@@ -67,23 +67,18 @@ check("IME composition Enter ignored", calls.next === 2);
 onKeydown(fakeEvent({ key: "Escape" }));
 check("Esc closes", calls.close === 1);
 
-// --- scope resolution (left/centre/right columns + collapse flags) ---
-const sidebarCol = { name: "sidebar" };
-const centerCol = { name: "center", previousElementSibling: sidebarCol };
+// --- scope resolution (centre/right columns + collapse flags) ---
+const centerCol = { name: "center" };
 const rightbarCol = { name: "rightbar", previousElementSibling: centerCol };
-const frameEl = {
-	hasAttribute: (name) => name === "data-sidebar-collapsed" // left collapsed
-};
+const frameEl = { hasAttribute: () => false };
 rightbarCol.parentElement = frameEl;
 const frameDoc = {
 	body: { name: "body" },
 	querySelector: (sel) => (sel === "[data-rightbar-col]" ? rightbarCol : null)
 };
 const probe = mod.probeColumns(frameDoc);
-check("probe resolves sidebar column", probe.roots.left === sidebarCol);
 check("probe resolves centre column", probe.roots.chat === centerCol);
 check("probe resolves right column", probe.roots.right === rightbarCol);
-check("left marked collapsed via frame flag", probe.collapsed.left === true);
 check("chat never collapsed when present", probe.collapsed.chat === false);
 check("right open without collapse flag", probe.collapsed.right === false);
 
@@ -91,22 +86,20 @@ const fsFrame = { hasAttribute: (name) => name === "data-rightbar-collapsed" };
 const fsRight = { previousElementSibling: centerCol, parentElement: fsFrame };
 const fsDoc = { body: frameDoc.body, querySelector: (sel) => (sel === "[data-rightbar-col]" ? fsRight : null) };
 check("plain right collapse detected", mod.probeColumns(fsDoc).collapsed.right === true);
+check("picker hidden while right collapsed", mod.pickerVisible(mod.probeColumns(fsDoc).collapsed) === false);
 check("pickScopeRoot right → collapsed → null", mod.pickScopeRoot("right", fsDoc) === null);
 fsFrame.hasAttribute = () => true; // collapsed AND fullscreen flags both set
 check("rightbar-fullscreen overrides collapse", mod.probeColumns(fsDoc).collapsed.right === false);
+check("picker visible in rightbar fullscreen", mod.pickerVisible(mod.probeColumns(fsDoc).collapsed) === true);
 
 check("pickScopeRoot chat → centre column", mod.pickScopeRoot("chat", frameDoc) === centerCol);
-check("pickScopeRoot left → collapsed → null", mod.pickScopeRoot("left", frameDoc) === null);
-const openDoc = { body: frameDoc.body, querySelector: (sel) => (sel === "[data-rightbar-col]" ? rightbarCol : null) };
-frameEl.hasAttribute = () => false;
-check("pickScopeRoot left when open → sidebar column", mod.pickScopeRoot("left", openDoc) === sidebarCol);
-check("pickScopeRoot right when open → right column", mod.pickScopeRoot("right", openDoc) === rightbarCol);
+check("pickScopeRoot right when open → right column", mod.pickScopeRoot("right", frameDoc) === rightbarCol);
 check("missing layout → null root", mod.pickScopeRoot("chat", { body: frameDoc.body, querySelector: () => null }) === null);
 
 // --- collapsed-scope fallback ---
-check("collapsed scope falls back to chat", mod.effectiveScope("right", { left: true, chat: false, right: true }) === "chat");
-check("open scope stays", mod.effectiveScope("right", { left: false, chat: false, right: false }) === "right");
-check("chat scope immune to fallback", mod.effectiveScope("chat", { left: true, chat: false, right: true }) === "chat");
+check("collapsed scope falls back to chat", mod.effectiveScope("right", { chat: false, right: true }) === "chat");
+check("open scope stays", mod.effectiveScope("right", { chat: false, right: false }) === "right");
+check("chat scope immune to fallback", mod.effectiveScope("chat", { chat: false, right: true }) === "chat");
 
 // --- scope persistence ---
 check("no localStorage → chat default", mod.readScope() === "chat");
@@ -114,7 +107,18 @@ globalThis.localStorage = { getItem: () => "right" };
 check("saved scope restored", mod.readScope() === "right");
 globalThis.localStorage = { getItem: () => "all" };
 check("pre-0.3 saved \"all\" rejected → chat", mod.readScope() === "chat");
+globalThis.localStorage = { getItem: () => "left" };
+check("pre-0.4 saved \"left\" rejected → chat", mod.readScope() === "chat");
 delete globalThis.localStorage;
+
+// --- i18n: language follows the dsh locale mirrored on <html lang> ---
+globalThis.document = { documentElement: { lang: "zh-CN" } };
+check("html lang zh-CN → zh", mod.detectLanguage() === "zh");
+globalThis.document = { documentElement: { lang: "en" } };
+check("html lang en → en", mod.detectLanguage() === "en");
+globalThis.document = { documentElement: { lang: "" } };
+check("html lang empty → browser fallback zh", mod.detectLanguage() === "zh");
+delete globalThis.document;
 
 // --- generational single-seat guard (duplicate-instance healing) ---
 const keydownListeners = [];
