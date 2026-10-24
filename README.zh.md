@@ -1,0 +1,76 @@
+# dsh-find-bar
+
+[English](README.md) | 中文
+
+DSH web 插件：为桌面 App（Electron 壳）补上 **⌘F / Ctrl+F 页内查找**，
+体验对齐浏览器原生查找条——支持全文高亮、匹配计数、回车跳转，
+并可用**左｜中｜右滑块**选择搜索区域。
+
+## 搜索范围
+
+查找条内的三段滑块对应页面三栏（选择会记忆，下次打开时保持）：
+
+| 滑块 | 范围 | 说明 |
+|---|---|---|
+| 左 | 左侧栏 | 左侧会话/工作区栏 |
+| 中 | 对话区域 | 中央对话页（**默认**） |
+| 右 | 右侧面板 | 右侧扩展面板 |
+
+范围规则：
+
+- **收起的栏不可选**：左栏或右栏收起时对应滑块置灰；搜索中该栏收起则自动退回"中"（不覆盖已保存的选择）
+- **跳过折叠内容**：对话区自动收起的操作步骤、隐藏的面板内容不参与匹配；展开后约 250ms 内自动重新计数并入结果
+- 面板全屏（覆盖中央）仍视为"右"可搜
+
+## 原理
+
+Electron 没有浏览器内置查找栏。本插件在客户端实现：
+
+- 监听 ⌘F/Ctrl+F（capture 阶段）弹出自绘查找条（跟随主题变量）
+- 用 TreeWalker 收集文本节点（含 shadow root 内），按所选栏限定根节点
+  （右栏锚点 `[data-rightbar-col]`，中央列为其前一兄弟，左栏再前一兄弟），
+  命中后用 `checkVisibility` 过滤被折叠隐藏的文本，构建 DOM Range 匹配
+- 用 **CSS Custom Highlight API**（`CSS.highlights` + `::highlight()`）高亮——
+  只绘制不修改 DOM，与 React 渲染零冲突
+- MutationObserver（含属性变化）防抖跟随内容更新与折叠/展开
+- 不支持该 API 的环境自动退回 `window.find()`（该模式无范围与计数）
+
+## 快捷键
+
+| 键 | 功能 |
+|---|---|
+| ⌘F / Ctrl+F | 打开查找条（自动填入当前选中文本） |
+| Enter / Shift+Enter | 下一个 / 上一个匹配 |
+| ⌘G / F3（+Shift） | 下一个 / 上一个 |
+| Esc | 关闭并清除高亮 |
+
+输入即搜（防抖跟随内容流式更新），计数显示 `当前/总数`。
+
+## 安装
+
+```sh
+dsh plugin --profile <profile> add dsh-find-bar
+```
+
+从 npm 安装（推荐）；或从源码：
+
+```sh
+git clone https://github.com/secyborg/dsh-find-bar
+dsh plugin --profile <profile> add ./dsh-find-bar
+```
+
+安装后重启一次应用（插件清单启动时装载）。
+
+## 已知限制
+
+- 只搜索**已渲染且可见**在 DOM 里的内容；未展开的会话/极长列表若被界面折叠，需先展开
+- 面板内嵌 iframe 的网页内容不在搜索范围内
+- 匹配上限 5000 条（超限显示 `+`）
+- 大小写不敏感，暂无"区分大小写"开关
+- 退回 `window.find()` 的旧环境不支持范围选择
+
+## 卸载
+
+```sh
+dsh plugin --profile <profile> remove dsh-find-bar
+```
