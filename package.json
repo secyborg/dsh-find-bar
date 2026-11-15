@@ -1,7 +1,7 @@
 {
   "name": "dsh-find-bar",
-  "version": "0.4.0",
-  "description": "DSH web plugin: a Cmd/Ctrl+F find bar (like the browser's built-in find) for the desktop Electron shell, which has none. Centre/right segmented scope picker (hidden while the right column is collapsed), collapsed regions skipped and re-added on expand, with highlight-all, match count, and Enter/Shift+Enter navigation.",
+  "version": "0.5.0",
+  "description": "DSH web plugin: a Cmd/Ctrl+F find bar for the desktop Electron shell, which has none. Typing only marks and counts (the view jumps only on Enter, anchored to your viewport), multi-select scope (chat/panel/both) that can follow the focus region (selection, then last click), match-case and whole-word toggles, highlight-all, Enter/Shift+Enter navigation.",
   "type": "module",
   "license": "MIT",
   "repository": {
